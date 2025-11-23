@@ -176,11 +176,6 @@ The project includes 30+ professional visualizations covering:
 - Model performance comparisons
 - Confusion matrices and error analysis
 
-
-## 📝 License
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
 ## 🙏 Acknowledgments
 
 - PAMAP2 Dataset: Reiss, A. and Stricker, D. (2012)
@@ -202,41 +197,4 @@ For questions or collaboration:
 ---
 
 
----
 
-## 📋 Files to Include in .gitignore
-
-Create a `.gitignore` file:
-```
-# Data files (large)
-*.dat
-pamap2_data/*.csv
-pamap2_data/*.dat
-
-# Models (optional - include if small enough)
-# pamap2_models/*.pkl
-
-# Python
-__pycache__/
-*.py[cod]
-*$py.class
-*.so
-.Python
-env/
-venv/
-*.egg-info/
-
-# Jupyter
-.ipynb_checkpoints/
-
-# IDE
-.vscode/
-.idea/
-*.swp
-
-# OS
-.DS_Store
-Thumbs.db
-
-# Streamlit
-.streamlit/secrets.toml
