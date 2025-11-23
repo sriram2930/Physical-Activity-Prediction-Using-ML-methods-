@@ -9,7 +9,7 @@ A comprehensive machine learning system for human activity recognition using wea
 [![Python](https://img.shields.io/badge/Python-3.10+-blue.svg)](https://www.python.org/)
 [![Streamlit](https://img.shields.io/badge/Streamlit-1.28+-red.svg)](https://streamlit.io/)
 [![Accuracy](https://img.shields.io/badge/Accuracy-94.2%25-green.svg)]()
-[![License](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+
 
 ## 🎯 Overview
 
