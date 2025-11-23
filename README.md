@@ -82,7 +82,7 @@ PAMAP2-Activity-Recognition/
 
 1. **Clone the repository**
 ```bash
-git clone https://github.com/YOUR_USERNAME/PAMAP2-Activity-Recognition.git
+git clone https://github.com/sriram2930/Physical-Activity-Prediction-Using-ML-methods.git
 cd PAMAP2-Activity-Recognition
 ```
 
