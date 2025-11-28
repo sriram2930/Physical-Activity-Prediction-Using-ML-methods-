@@ -386,7 +386,7 @@ with st.sidebar:
     
     page = st.radio(
         "Navigation",
-        ["🏠 Home", "🎯 Predict", "🧪 Test Real Data", "📊 Model Info", "👥 Team"],
+        ["🏠 Home", "🎯 Predict", "🧪 Test Real Data", "📊 Model Info"],
         label_visibility="collapsed"
     )
     
@@ -887,90 +887,9 @@ elif "Test Real Data" in page:
                 st.json(preview_data)
             else:
                 st.info("👈 Select an activity and load a sample to test")
-        
-        # Batch testing section
-        st.markdown("---")
-        st.markdown("### 📈 Batch Accuracy Test")
-        
-        batch_col1, batch_col2 = st.columns([1, 2])
-        
-        with batch_col1:
-            n_samples = st.slider("Samples per activity:", 10, 100, 50)
-            
-            if st.button("🚀 Run Batch Test", type="primary"):
-                st.session_state['run_batch'] = True
-        
-        with batch_col2:
-            if 'run_batch' in st.session_state:
-                progress_bar = st.progress(0)
-                status_text = st.empty()
-                
-                results_list = []
-                activities = sample_df['activity_name'].unique()
-                
-                for i, activity in enumerate(activities):
-                    status_text.text(f"Testing {activity}...")
-                    
-                    activity_samples = sample_df[sample_df['activity_name'] == activity]
-                    test_samples = activity_samples.sample(n=min(n_samples, len(activity_samples)))
-                    
-                    correct = 0
-                    for _, row in test_samples.iterrows():
-                        # Get features
-                        feat_vector = [row[f] if f in row.index else 0 for f in feature_names]
-                        feat_array = np.array(feat_vector, dtype=np.float32).reshape(1, -1)
-                        
-                        # Predict
-                        pred = selected_model.predict(feat_array)[0]
-                        if label_encoder:
-                            pred_id = label_encoder.inverse_transform([pred])[0]
-                        else:
-                            pred_id = pred
-                        
-                        pred_name, _ = ACTIVITY_LABELS.get(pred_id, ("Unknown", ""))
-                        
-                        if pred_name.lower().replace(" ", "_") == activity.lower() or \
-                           pred_name.lower() == activity.lower().replace("_", " "):
-                            correct += 1
-                    
-                    accuracy = correct / len(test_samples) * 100
-                    results_list.append({
-                        'Activity': activity.replace('_', ' ').title(),
-                        'Samples': len(test_samples),
-                        'Correct': correct,
-                        'Accuracy': accuracy
-                    })
-                    
-                    progress_bar.progress((i + 1) / len(activities))
-                
-                status_text.text("✅ Complete!")
-                
-                # Display results
-                results_df = pd.DataFrame(results_list)
-                
-                # Overall accuracy
-                total_correct = results_df['Correct'].sum()
-                total_samples = results_df['Samples'].sum()
-                overall_acc = total_correct / total_samples * 100
-                
-                st.metric("Overall Accuracy", f"{overall_acc:.1f}%", 
-                         delta=f"{total_correct}/{total_samples} correct")
-                
-                # Per-activity chart
-                fig = px.bar(results_df, x='Activity', y='Accuracy', 
-                            color='Accuracy', color_continuous_scale='RdYlGn',
-                            title='Accuracy by Activity')
-                fig.update_layout(height=350)
-                fig.add_hline(y=overall_acc, line_dash="dash", 
-                             annotation_text=f"Overall: {overall_acc:.1f}%")
-                st.plotly_chart(fig, use_container_width=True)
-                
-                del st.session_state['run_batch']
-    else:
-        st.error("Could not load sample data or models. Please check that 'pamap2_data/pamap2_engineered.csv' exists.")
 
 # MODEL INFO PAGE
-elif "Model" in page:
+elif "Model Info" in page:
     st.markdown("## 📊 Model Information")
     
     # Model comparison
@@ -991,21 +910,16 @@ elif "Model" in page:
                 model_data["Accuracy"][i] = results['results'][model_name]['test_accuracy'] * 100
                 model_data["F1-Score"][i] = results['results'][model_name]['test_f1']
     
-    df = pd.DataFrame(model_data)
+    df_model = pd.DataFrame(model_data)
     
-    # Highlight best model
-    def highlight_best(row):
-        if row["Model"] == "Random Forest":
-            return ['background-color: #d4edda'] * len(row)
-        return [''] * len(row)
-    
-    st.dataframe(df.style.apply(highlight_best, axis=1), use_container_width=True)
+    # Display table without styling for better visibility
+    st.dataframe(df_model, use_container_width=True, hide_index=True)
     
     # Accuracy chart
-    fig = px.bar(df, x="Model", y="Accuracy", color="Model",
+    fig = px.bar(df_model, x="Model", y="Accuracy", color="Model",
                  title="Model Accuracy Comparison",
                  color_discrete_sequence=["#6366f1", "#22c55e", "#f59e0b"])
-    fig.update_layout(showlegend=False)
+    fig.update_layout(showlegend=False, height=400)
     st.plotly_chart(fig, use_container_width=True)
     
     st.markdown("---")
@@ -1013,19 +927,44 @@ elif "Model" in page:
     # Feature importance
     st.markdown("### 🎯 Feature Importance (Random Forest)")
     
-    importance_data = {
-        "Feature": [
-            "ankle_acc_magnitude", "chest_acc_magnitude", "hand_acc_magnitude",
-            "heart_rate", "overall_intensity", "ankle_jerk",
-            "chest_gyro_magnitude", "hand_ankle_ratio"
-        ],
-        "Importance": [0.18, 0.15, 0.12, 0.11, 0.09, 0.08, 0.07, 0.06]
-    }
-    
-    fig = px.bar(importance_data, x="Importance", y="Feature", orientation='h',
-                 color="Importance", color_continuous_scale="Viridis")
-    fig.update_layout(height=400)
-    st.plotly_chart(fig, use_container_width=True)
+    if models and 'Random Forest' in models and results:
+        rf_model = models['Random Forest']
+        feature_names = results.get('top_features', [])
+        
+        if hasattr(rf_model, 'feature_importances_') and feature_names:
+            importances = rf_model.feature_importances_
+            indices = np.argsort(importances)[-15:][::-1]
+            
+            importance_df = pd.DataFrame({
+                'Feature': [feature_names[i] for i in indices],
+                'Importance': [importances[i] for i in indices]
+            })
+            
+            fig = px.bar(
+                importance_df,
+                x='Importance',
+                y='Feature',
+                orientation='h',
+                color='Importance',
+                color_continuous_scale='Viridis',
+                title="Top 15 Most Important Features"
+            )
+            fig.update_layout(height=500)
+            st.plotly_chart(fig, use_container_width=True)
+    else:
+        importance_data = {
+            "Feature": [
+                "ankle_acc_magnitude", "chest_acc_magnitude", "hand_acc_magnitude",
+                "heart_rate", "overall_intensity", "ankle_jerk",
+                "chest_gyro_magnitude", "hand_ankle_ratio"
+            ],
+            "Importance": [0.18, 0.15, 0.12, 0.11, 0.09, 0.08, 0.07, 0.06]
+        }
+        
+        fig = px.bar(importance_data, x="Importance", y="Feature", orientation='h',
+                     color="Importance", color_continuous_scale="Viridis")
+        fig.update_layout(height=400)
+        st.plotly_chart(fig, use_container_width=True)
     
     st.markdown("---")
     
@@ -1042,6 +981,7 @@ elif "Model" in page:
         - ✅ Robust to outliers
         - ✅ Provides feature importance
         - ✅ Fast inference time
+        - ✅ No feature scaling needed
         """)
     
     with col2:
@@ -1052,70 +992,8 @@ elif "Model" in page:
         - 🔄 Noisy sensor data
         - ⚡ Real-time prediction needed
         - 📈 Balanced precision/recall
+        - 💪 Handles imbalanced data
         """)
-
-# TEAM PAGE
-elif "Team" in page:
-    st.markdown("## 👥 Project Team")
-    st.markdown("### DATA 230 - Fall 2025")
-    
-    st.markdown("---")
-    
-    # Team members - UPDATE THESE WITH YOUR ACTUAL NAMES
-    team = [
-        {"name": "Team Member 1", "role": "Data Engineering", "emoji": "🔧"},
-        {"name": "Team Member 2", "role": "ML Development", "emoji": "🤖"},
-        {"name": "Team Member 3", "role": "Visualization", "emoji": "📊"},
-        {"name": "Team Member 4", "role": "Analysis & Testing", "emoji": "🔬"},
-    ]
-    
-    cols = st.columns(4)
-    
-    for col, member in zip(cols, team):
-        with col:
-            st.markdown(f"""
-            <div style="text-align: center; padding: 2rem; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); 
-                        border-radius: 1rem; color: white; margin: 0.5rem;">
-                <div style="font-size: 3rem;">{member['emoji']}</div>
-                <div style="font-size: 1.2rem; font-weight: 600; margin: 1rem 0;">{member['name']}</div>
-                <div style="font-size: 0.9rem; opacity: 0.9;">{member['role']}</div>
-            </div>
-            """, unsafe_allow_html=True)
-    
-    st.markdown("---")
-    
-    # Project info
-    st.markdown("### 📚 Project Details")
-    
-    col1, col2 = st.columns(2)
-    
-    with col1:
-        st.markdown("""
-        **Dataset:** PAMAP2 (Physical Activity Monitoring)
-        
-        **Source:** UCI Machine Learning Repository
-        
-        **Data Collection:**
-        - 9 subjects
-        - 3 IMU sensors (hand, chest, ankle)
-        - 12+ physical activities
-        - 100 Hz sampling rate
-        """)
-    
-    with col2:
-        st.markdown("""
-        **Technologies Used:**
-        - Python 3.10+
-        - Scikit-learn
-        - Pandas & NumPy
-        - Streamlit
-        - Plotly
-        
-        **GitHub:** [Project Repository](#)
-        """)
-    
-    st.markdown("---")
-    st.markdown("*PAMAP2 Activity Recognition Project • DATA 230 • Fall 2025*")
 
 # =============================================================================
 # FOOTER
